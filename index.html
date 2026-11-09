@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#c2410c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="GeoLog">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>GeoLog</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+</head>
+<body>
+<style>
+/* Layout: a single-column field notebook. Sticky top bar with tabs, cards only for stations and form sections, mono for every measurement. */
+:root {
+  --bg: #f3f4f1;
+  --surface: #ffffff;
+  --sunk: #e8eae5;
+  --ink: #1d2320;
+  --muted: #5d6660;
+  --line: #d3d7d0;
+  --accent: #c2410c;        /* hi-vis field orange */
+  --accent-ink: #ffffff;
+  --accent-soft: #fbe6da;
+  --good: #2f7d4f;
+  --warn: #a16207;
+  --map-bg: #eef0ea;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141816; --surface: #1c211e; --sunk: #232a26; --ink: #e7ebe6; --muted: #9aa49d;
+    --line: #333c37; --accent: #f97316; --accent-ink: #1a0e05; --accent-soft: #3a2314;
+    --good: #5bbd84; --warn: #e0a83a; --map-bg: #19201c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141816; --surface: #1c211e; --sunk: #232a26; --ink: #e7ebe6; --muted: #9aa49d;
+  --line: #333c37; --accent: #f97316; --accent-ink: #1a0e05; --accent-soft: #3a2314;
+  --good: #5bbd84; --warn: #e0a83a; --map-bg: #19201c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--body); font-size: 15px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.bar-in, .wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.bar-top { display: flex; align-items: center; gap: 12px; padding-block: 10px 6px; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: .02em; line-height: 1; display: flex; align-items: center; gap: 8px; }
+.brand svg { color: var(--accent); }
+.proj { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.status { font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 99px; background: var(--sunk); color: var(--muted); white-space: nowrap; }
+.status.on::before { content: "● "; color: var(--good); }
+.status.off::before { content: "● "; color: var(--warn); }
+.tabs { display: flex; gap: 2px; overflow-x: auto; }
+.tab { border: 0; background: none; padding: 8px 12px 10px; font-family: var(--display); font-weight: 600; font-size: 17px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+
+main.wrap { padding-block: 16px 64px; display: grid; gap: 16px; }
+h2 { font-family: var(--display); font-weight: 700; font-size: 24px; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+h3 { font-family: var(--display); font-weight: 600; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 9px 14px; border-radius: 8px; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; min-height: 42px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.ghost { border-color: transparent; background: none; }
+.btn.danger { color: var(--accent); }
+.btn.small { min-height: 34px; padding: 5px 10px; font-size: 13px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.spread { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.stat { background: var(--surface); padding: 10px 12px; }
+.stat b { display: block; font-family: var(--mono); font-size: 22px; font-weight: 500; }
+.stat span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+@media (max-width: 420px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+.banner { background: var(--accent-soft); border-radius: 10px; padding: 12px 14px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 14px; }
+
+.list { display: grid; gap: 8px; }
+.st { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: center; cursor: pointer; text-align: left; width: 100%; }
+.st:hover { border-color: var(--muted); }
+.st .code { font-family: var(--mono); font-weight: 500; font-size: 15px; color: var(--accent); grid-row: span 2; align-self: start; padding-top: 1px; }
+.st .rock { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st .meta { font-size: 12.5px; color: var(--muted); grid-column: 2 / 4; min-width: 0; }
+.st .chips { display: flex; gap: 4px; align-items: center; justify-self: end; }
+.chip { display: inline-block; border: 0; line-height: 1.5; font-family: var(--mono); font-size: 11px; background: var(--sunk); border-radius: 4px; padding: 2px 6px; color: var(--muted); white-space: nowrap; }
+.chip.exm { background: var(--accent-soft); color: var(--accent); }
+.empty { border: 1.5px dashed var(--line); border-radius: 10px; padding: 28px 16px; text-align: center; color: var(--muted); display: grid; gap: 10px; justify-items: center; }
+
+.sec { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 12px; }
+.f { display: grid; gap: 4px; min-width: 0; }
+.f.wide { grid-column: 1 / -1; }
+.f label, .lbl { font-size: 12px; color: var(--muted); font-weight: 500; letter-spacing: .02em; }
+input, select, textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 7px; padding: 9px 10px; min-height: 42px; }
+textarea { min-height: 72px; resize: vertical; }
+input[type="number"], .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; }
+
+.gps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.gpsmsg { font-size: 13px; }
+.gpsmsg.ok { color: var(--good); }
+.gpsmsg.err { color: var(--warn); }
+
+.meas { display: grid; gap: 8px; }
+.m { border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 8px; background: var(--bg); }
+.m-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 8px; align-items: end; }
+@media (max-width: 520px) { .m-grid { grid-template-columns: 1fr 1fr 1fr; } .m-grid .f.type { grid-column: 1 / -1; } }
+.m-foot { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.m-read { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+
+.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.ph { display: grid; gap: 6px; }
+.ph img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 7px; background: var(--sunk); display: block; }
+.ph input { min-height: 34px; padding: 5px 8px; font-size: 13px; }
+.filebtn { position: relative; overflow: hidden; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; min-height: 0; }
+
+pre.log { font-family: var(--mono); font-size: 12.5px; line-height: 1.55; background: var(--sunk); border-radius: 8px; padding: 14px; margin: 0; overflow-x: auto; white-space: pre; }
+
+.mapbox { background: var(--map-bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.mapbox svg { display: block; width: 100%; height: auto; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+
+.exp { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.ex { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--surface); display: grid; gap: 8px; align-content: start; }
+.ex b { font-family: var(--mono); font-size: 14px; }
+.ex p { font-size: 13px; color: var(--muted); }
+
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 14px; z-index: 20; max-width: calc(100% - 32px); }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+@media (prefers-reduced-motion: no-preference) { .toast { animation: up .18s ease-out; } @keyframes up { from { transform: translate(-50%, 8px); opacity: 0; } } }
+</style>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="bar-top">
+      <div class="brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M3 12h18"/><path d="M12 12v7"/></svg>
+        GeoLog
+      </div>
+      <div class="proj" id="projLabel"></div>
+      <span class="status" id="netStatus">offline-ready</span>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-view="stations" id="tab-stations">Stations</button>
+      <button class="tab" role="tab" data-view="map" id="tab-map">Map</button>
+      <button class="tab" role="tab" data-view="log" id="tab-log">Field log</button>
+      <button class="tab" role="tab" data-view="export" id="tab-export">Export</button>
+      <button class="tab" role="tab" data-view="settings" id="tab-settings">Project</button>
+    </nav>
+  </div>
+</header>
+<main class="wrap" id="main"></main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- storage: IndexedDB with in-memory fallback ---------- */
+const DB_NAME = 'geolog', DB_VER = 1;
+let idb = null;
+const mem = { stations: new Map(), photos: new Map(), meta: new Map() };
+function openDB() {
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.open(DB_NAME, DB_VER);
+      req.onupgradeneeded = () => {
+        const d = req.result;
+        if (!d.objectStoreNames.contains('stations')) d.createObjectStore('stations', { keyPath: 'id' });
+        if (!d.objectStoreNames.contains('photos')) d.createObjectStore('photos', { keyPath: 'id' });
+        if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' });
+      };
+      req.onsuccess = () => { idb = req.result; resolve(); };
+      req.onerror = () => resolve();
+      setTimeout(resolve, 3000);
+    } catch (e) { resolve(); }
+  });
+}
+function tx(store, mode, fn) {
+  if (!idb) return Promise.resolve(fn(null, store));
+  return new Promise((resolve, reject) => {
+    try {
+      const t = idb.transaction(store, mode); const s = t.objectStore(store);
+      let out; const r = fn(s, store);
+      if (r && 'onsuccess' in r) r.onsuccess = () => { out = r.result; };
+      t.oncomplete = () => resolve(out); t.onerror = () => reject(t.error);
+    } catch (e) { resolve(fn(null, store)); }
+  });
+}
+const db = {
+  all: (store) => idb ? tx(store, 'readonly', s => s.getAll()) : Promise.resolve([...mem[store].values()]),
+  get: (store, k) => idb ? tx(store, 'readonly', s => s.get(k)) : Promise.resolve(mem[store].get(k)),
+  put: (store, v) => idb ? tx(store, 'readwrite', s => s.put(v)) : Promise.resolve(mem[store].set(v.id || v.key, v)),
+  del: (store, k) => idb ? tx(store, 'readwrite', s => s.delete(k)) : Promise.resolve(mem[store].delete(k)),
+  clear: (store) => idb ? tx(store, 'readwrite', s => s.clear()) : Promise.resolve(mem[store].clear()),
+};
+
+/* ---------- helpers ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const pad3 = (n) => String(Math.round(n)).padStart(3, '0');
+const pad2 = (n) => String(Math.round(n)).padStart(2, '0');
+const num = (v) => (v === '' || v === null || v === undefined || isNaN(+v)) ? null : +v;
+const norm360 = (a) => ((a % 360) + 360) % 360;
+const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const quad = (az) => DIRS[Math.round(norm360(az) / 45) % 8];
+const fmtDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toISOString().slice(0, 16).replace('T', ' '); };
+const fmtLat = (v) => v == null ? '—' : `${Math.abs(v).toFixed(5)}° ${v >= 0 ? 'N' : 'S'}`;
+const fmtLon = (v) => v == null ? '—' : `${Math.abs(v).toFixed(5)}° ${v >= 0 ? 'E' : 'W'}`;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2600); }
+
+const PLANAR = ['Bedding (S0)', 'Foliation (S1)', 'Cleavage', 'Joint', 'Fault', 'Vein', 'Dyke / contact', 'Shear zone'];
+const LINEAR = ['Lineation', 'Fold axis', 'Slickenlines'];
+const isLinear = (t) => LINEAR.includes(t);
+const ROCK_CLASS = ['', 'Igneous', 'Sedimentary', 'Metamorphic', 'Vein / hydrothermal', 'Unconsolidated'];
+const GRAIN = ['', 'Glassy', 'Very fine (<0.06 mm)', 'Fine (0.06–1 mm)', 'Medium (1–5 mm)', 'Coarse (5–30 mm)', 'Very coarse (>30 mm)', 'Porphyritic'];
+const EXPOSURE = ['In situ outcrop', 'Subcrop', 'Float / boulder', 'Spoil / dump', 'Core / pit'];
+const MIN_STYLE = ['', 'Disseminated', 'Vein / veinlet', 'Stockwork', 'Massive', 'Breccia infill', 'Replacement', 'Stratabound', 'Gossan / oxidised'];
+const SAMPLE_TYPE = ['Hand specimen', 'Rock chip', 'Channel', 'Grab', 'Soil', 'Stream sediment', 'Oriented'];
+
+/* ---------- state ---------- */
+let stations = [];
+let settings = { key: 'settings', project: 'Untitled project', geologist: '', prefix: 'ST', samplePrefix: '', notation: 'strike' };
+let view = 'stations';
+let currentId = null;
+let pendingDelete = null;
+
+function newStation() {
+  const pre = (settings.prefix || 'ST') + '-';
+  const n = stations.filter(s => String(s.code).startsWith(pre)).reduce((m, s) => Math.max(m, parseInt(String(s.code).slice(pre.length)) || 0), 0) + 1;
+  const now = new Date().toISOString();
+  return {
+    id: uid(), code: `${settings.prefix || 'ST'}-${pad3(n)}`, createdAt: now, updatedAt: now,
+    lat: null, lon: null, elev: null, acc: null, gpsSource: '', locality: '', exposure: EXPOSURE[0], notes: '',
+    lith: { rockType: '', rockClass: '', colour: '', grainSize: '', texture: '', description: '' },
+    structures: [], min: { minerals: '', style: '', abundance: '', alteration: '', notes: '' },
+    samples: [], photos: [],
+  };
+}
+
+const saveTimers = {};
+function saveStation(st, now = false) {
+  st.updatedAt = new Date().toISOString();
+  clearTimeout(saveTimers[st.id]);
+  const go = () => db.put('stations', st).catch(() => toast('Could not save. Storage may be full.'));
+  if (now) return go();
+  saveTimers[st.id] = setTimeout(go, 300);
+}
+
+/* ---------- derived text ---------- */
+function structText(m) {
+  if (isLinear(m.type)) {
+    if (m.trend == null && m.plunge == null) return '';
+    return `${m.plunge != null ? pad2(m.plunge) : '??'} → ${m.trend != null ? pad3(m.trend) : '???'}`;
+  }
+  if (m.strike == null && m.dip == null) return '';
+  const dd = m.dipDir != null ? m.dipDir : (m.strike != null ? norm360(m.strike + 90) : null);
+  const strike = m.strike != null ? pad3(m.strike) : '???';
+  const dip = m.dip != null ? pad2(m.dip) : '??';
+  return settings.notation === 'dipdir'
+    ? `${dip}/${dd != null ? pad3(dd) : '???'}`
+    : `${strike}/${dip} ${dd != null ? quad(dd) : ''}`.trim();
+}
+
+function stationLog(s) {
+  const L = [];
+  const rule = '─'.repeat(54);
+  L.push(`STATION ${s.code}${s.example ? '  [example]' : ''}`.padEnd(36) + fmtDate(s.createdAt));
+  L.push(rule);
+  L.push(`Location   ${fmtLat(s.lat)}, ${fmtLon(s.lon)}`);
+  const extra = [];
+  if (s.acc != null) extra.push(`±${Math.round(s.acc)} m`);
+  if (s.elev != null) extra.push(`elev ${Math.round(s.elev)} m`);
+  if (s.gpsSource) extra.push(s.gpsSource === 'gps' ? 'GPS fix' : 'entered by hand');
+  if (extra.length) L.push(`           ${extra.join(' · ')}`);
+  if (s.locality) L.push(`Locality   ${s.locality}`);
+  L.push(`Exposure   ${s.exposure || '—'}`);
+  L.push('');
+  L.push('LITHOLOGY');
+  const l = s.lith;
+  const head = [l.rockType || 'Unnamed rock', l.rockClass && `(${l.rockClass.toLowerCase()})`].filter(Boolean).join(' ');
+  L.push(`  ${head}`);
+  const bits = [l.colour, l.grainSize, l.texture].filter(Boolean);
+  if (bits.length) L.push(`  ${bits.join('; ')}`);
+  if (l.description) wrap(l.description, 52).forEach(x => L.push(`  ${x}`));
+  L.push('');
+  L.push(`STRUCTURES (${s.structures.length})`);
+  if (!s.structures.length) L.push('  none recorded');
+  s.structures.forEach(m => {
+    let line = `  ${m.type.padEnd(16)} ${structText(m) || 'no reading'}`;
+    if (m.sense) line += `  ${m.sense}`;
+    L.push(line);
+    if (m.notes) L.push(`  ${''.padEnd(16)} ${m.notes}`);
+  });
+  L.push('');
+  L.push('MINERALISATION / ALTERATION');
+  const mi = s.min;
+  if (!mi.minerals && !mi.alteration && !mi.style) L.push('  none observed');
+  else {
+    if (mi.minerals) L.push(`  Minerals    ${mi.minerals}`);
+    if (mi.style) L.push(`  Style       ${mi.style}`);
+    if (mi.abundance) L.push(`  Abundance   ${mi.abundance}`);
+    if (mi.alteration) L.push(`  Alteration  ${mi.alteration}`);
+    if (mi.notes) wrap(mi.notes, 52).forEach(x => L.push(`  ${x}`));
+  }
+  L.push('');
+  L.push(`SAMPLES (${s.samples.length})`);
+  if (!s.samples.length) L.push('  none taken');
+  s.samples.forEach(x => L.push(`  ${(x.sampleId || '—').padEnd(12)} ${(x.type || '').padEnd(15)} ${x.purpose || ''}`.trimEnd()));
+  L.push('');
+  L.push(`PHOTOS (${s.photos.length})`);
+  s.photos.forEach((p, i) => L.push(`  ${s.code}_P${i + 1}${p.caption ? '  ' + p.caption : ''}`));
+  if (s.notes) { L.push(''); L.push('NOTES'); wrap(s.notes, 52).forEach(x => L.push(`  ${x}`)); }
+  return L.join('\n');
+}
+function wrap(text, w) {
+  const out = [];
+  String(text).split(/\n/).forEach(par => {
+    let line = '';
+    par.split(/\s+/).forEach(word => {
+      if ((line + ' ' + word).trim().length > w) { if (line) out.push(line); line = word; }
+      else line = (line + ' ' + word).trim();
+    });
+    out.push(line);
+  });
+  return out;
+}
+function fieldLog() {
+  const head = [`FIELD LOG — ${settings.project}`, settings.geologist ? `Geologist: ${settings.geologist}` : '', `Generated ${fmtDate(new Date().toISOString())} UTC · ${stations.length} stations`, ''].filter((x, i) => x || i === 3);
+  return head.join('\n') + '\n' + sorted().map(stationLog).join('\n\n\n');
+}
+const sorted = () => [...stations].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+/* ---------- export builders ---------- */
+function csvCell(v) { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
+function toCSV(rows) {
+  if (!rows.length) return '';
+  const cols = Object.keys(rows[0]);
+  return [cols.join(','), ...rows.map(r => cols.map(c => csvCell(r[c])).join(','))].join('\r\n') + '\r\n';
+}
+function dipDirOf(m) { return m.dipDir != null ? m.dipDir : (m.strike != null ? norm360(m.strike + 90) : null); }
+function strikeOf(m) { return m.strike != null ? m.strike : (m.dipDir != null ? norm360(m.dipDir - 90) : null); }
+function stationProps(s) {
+  const first = s.structures.find(m => !isLinear(m.type) && (m.strike != null || m.dipDir != null));
+  return {
+    station: s.code, date: s.createdAt, lat: s.lat, lon: s.lon, elev_m: s.elev, gps_acc_m: s.acc, gps_source: s.gpsSource,
+    locality: s.locality, exposure: s.exposure,
+    rock_type: s.lith.rockType, rock_class: s.lith.rockClass, colour: s.lith.colour, grain_size: s.lith.grainSize, texture: s.lith.texture, lith_desc: s.lith.description,
+    struct_type: first ? first.type : '', strike: first ? strikeOf(first) : null, dip: first ? first.dip : null, dip_dir: first ? dipDirOf(first) : null,
+    n_structures: s.structures.length,
+    minerals: s.min.minerals, min_style: s.min.style, min_abund: s.min.abundance, alteration: s.min.alteration,
+    samples: s.samples.map(x => x.sampleId).filter(Boolean).join('; '), n_photos: s.photos.length,
+    notes: s.notes, geologist: settings.geologist, project: settings.project,
+  };
+}
+const located = () => sorted().filter(s => s.lat != null && s.lon != null);
+function geojsonStations() {
+  return JSON.stringify({
+    type: 'FeatureCollection', name: 'geolog_stations', crs: { type: 'name', properties: { name: 'urn:ogc:def:crs:OGC:1.3:CRS84' } },
+    features: located().map(s => ({ type: 'Feature', geometry: { type: 'Point', coordinates: s.elev != null ? [s.lon, s.lat, s.elev] : [s.lon, s.lat] }, properties: stationProps(s) })),
+  }, null, 2);
+}
+function geojsonStructures() {
+  const f = [];
+  located().forEach(s => s.structures.forEach((m, i) => f.push({
+    type: 'Feature', geometry: { type: 'Point', coordinates: [s.lon, s.lat] },
+    properties: { station: s.code, meas_no: i + 1, type: m.type, kind: isLinear(m.type) ? 'linear' : 'planar', strike: isLinear(m.type) ? null : strikeOf(m), dip: isLinear(m.type) ? null : m.dip, dip_dir: isLinear(m.type) ? null : dipDirOf(m), trend: isLinear(m.type) ? m.trend : null, plunge: isLinear(m.type) ? m.plunge : null, sense: m.sense, notes: m.notes },
+  })));
+  return JSON.stringify({ type: 'FeatureCollection', name: 'geolog_structures', crs: { type: 'name', properties: { name: 'urn:ogc:def:crs:OGC:1.3:CRS84' } }, features: f }, null, 2);
+}
+function csvStations() { return toCSV(sorted().map(stationProps)); }
+function csvStructures() {
+  const rows = [];
+  sorted().forEach(s => s.structures.forEach((m, i) => rows.push({ station: s.code, lat: s.lat, lon: s.lon, meas_no: i + 1, type: m.type, kind: isLinear(m.type) ? 'linear' : 'planar', strike: isLinear(m.type) ? '' : strikeOf(m), dip: isLinear(m.type) ? '' : m.dip, dip_dir: isLinear(m.type) ? '' : dipDirOf(m), trend: isLinear(m.type) ? m.trend : '', plunge: isLinear(m.type) ? m.plunge : '', sense: m.sense, notes: m.notes })));
+  return rows.length ? toCSV(rows) : 'station,lat,lon,meas_no,type,kind,strike,dip,dip_dir,trend,plunge,sense,notes\r\n';
+}
+function csvSamples() {
+  const rows = [];
+  sorted().forEach(s => s.samples.forEach(x => rows.push({ sample_id: x.sampleId, station: s.code, lat: s.lat, lon: s.lon, type: x.type, purpose: x.purpose, rock_type: s.lith.rockType, notes: x.notes })));
+  return rows.length ? toCSV(rows) : 'sample_id,station,lat,lon,type,purpose,rock_type,notes\r\n';
+}
+async function backupJSON() {
+  const photos = await db.all('photos');
+  return JSON.stringify({ app: 'GeoLog', version: 1, exportedAt: new Date().toISOString(), settings, stations: sorted(), photos }, null, 1);
+}
+
+/* ---------- file saving (works as a PWA and inside a Claude artifact) ---------- */
+let downloadsCap;
+async function getDownloads() {
+  if (downloadsCap !== undefined) return downloadsCap;
+  try { downloadsCap = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; } catch (e) { downloadsCap = null; }
+  return downloadsCap;
+}
+const inArtifact = () => !!(window.claude && window.claude.use);
+async function saveFile(name, data, mime) {
+  const dl = await getDownloads();
+  if (dl) {
+    if (/\.geojson$/.test(name)) name = name.replace(/\.geojson$/, '.json');
+    try { await dl.save({ filename: name, data }); toast(`Saved ${name}`); }
+    catch (e) { if (e && e.code !== 'declined') toast(`Couldn't save ${name} here (${e.code || 'unavailable'}).`); }
+    return;
+  }
+  try {
+    const blob = data instanceof Blob ? data : new Blob([data], { type: mime || 'text/plain' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast(`Saved ${name}`);
+  } catch (e) { toast(`Couldn't save ${name}.`); }
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast('Copied'); }
+  catch (e) { toast('Copy is blocked here. Select the text and copy it.'); }
+}
+
+/* ---------- photos ---------- */
+async function compressImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const max = 1600, scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.8);
+  } finally { URL.revokeObjectURL(url); }
+}
+function dataURLtoBlob(d) {
+  const [h, b] = d.split(','); const bin = atob(b); const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return new Blob([u], { type: h.slice(5, h.indexOf(';')) });
+}
+
+/* ---------- rendering ---------- */
+function setView(v, id) {
+  view = v; currentId = id ?? null; pendingDelete = null;
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.view === (v === 'station' ? 'stations' : v))));
+  render(); window.scrollTo(0, 0);
+}
+function render() {
+  $('#projLabel').textContent = settings.project + (settings.geologist ? ' · ' + settings.geologist : '');
+  const m = $('#main'); m.oninput = null; m.onchange = null;
+  if (view === 'station') { const s = stations.find(x => x.id === currentId); if (!s) return setView('stations'); m.innerHTML = stationView(s); bindStation(s); return; }
+  m.innerHTML = ({ stations: listView, map: mapView, log: logView, export: exportView, settings: settingsView })[view]();
+  if (view === 'map') drawMap();
+}
+
+function listView() {
+  const nStruct = stations.reduce((a, s) => a + s.structures.length, 0);
+  const nSamp = stations.reduce((a, s) => a + s.samples.length, 0);
+  const nPh = stations.reduce((a, s) => a + s.photos.length, 0);
+  const hasEx = stations.some(s => s.example);
+  const items = [...stations].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return `
+  <div class="spread"><h2>Stations</h2><button class="btn primary" data-act="new">+ New station</button></div>
+  <div class="stats">
+    <div class="stat"><b>${stations.length}</b><span>Stations</span></div>
+    <div class="stat"><b>${nStruct}</b><span>Structures</span></div>
+    <div class="stat"><b>${nSamp}</b><span>Samples</span></div>
+    <div class="stat"><b>${nPh}</b><span>Photos</span></div>
+  </div>
+  ${hasEx ? `<div class="banner"><span>Stations marked <b>example</b> are sample data from St Agnes, Cornwall so you can see how GeoLog works.</span>
+     ${pendingDelete === 'examples' ? `<span class="confirm">Delete all examples? <button class="btn small danger" data-act="clear-ex-yes">Delete</button><button class="btn small" data-act="cancel">Keep</button></span>` : `<button class="btn small" data-act="clear-ex">Clear examples</button>`}</div>` : ''}
+  ${items.length ? `<div class="list">${items.map(s => `
+    <button class="st" data-open="${s.id}">
+      <span class="code">${esc(s.code)}</span>
+      <span class="rock">${esc(s.lith.rockType || 'Unnamed rock')}</span>
+      <span class="chips">${s.example ? '<span class="chip exm">example</span>' : ''}${s.structures.length ? `<span class="chip">${s.structures.length} str</span>` : ''}${s.samples.length ? `<span class="chip">${s.samples.length} smp</span>` : ''}${s.photos.length ? `<span class="chip">${s.photos.length} ph</span>` : ''}</span>
+      <span class="meta mono">${s.lat != null ? `${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}` : 'no position'} · ${fmtDate(s.createdAt)}${s.locality ? ' · ' + esc(s.locality) : ''}</span>
+    </button>`).join('')}</div>`
+    : `<div class="empty"><p>No stations yet. Stand at your first outcrop and tap New station. GeoLog grabs your position and everything is saved on this device, with or without signal.</p><div class="row"><button class="btn primary" data-act="new">+ New station</button><button class="btn" data-act="load-ex">Load example stations</button></div></div>`}`;
+}
+
+function opt(list, val) { return list.map(o => `<option${o === val ? ' selected' : ''} value="${esc(o)}">${esc(o || '—')}</option>`).join(''); }
+function field(label, path, val, opts = {}) {
+  const id = 'f-' + path.replace(/\W/g, '-');
+  if (opts.select) return `<div class="f${opts.wide ? ' wide' : ''}"><label for="${id}">${label}</label><select id="${id}" data-path="${path}">${opt(opts.select, val)}</select></div>`;
+  if (opts.area) return `<div class="f wide"><label for="${id}">${label}</label><textarea id="${id}" data-path="${path}" placeholder="${esc(opts.ph || '')}">${esc(val)}</textarea></div>`;
+  return `<div class="f${opts.wide ? ' wide' : ''}"><label for="${id}">${label}</label><input id="${id}" data-path="${path}" ${opts.type ? `type="${opts.type}" inputmode="decimal" step="any"` : ''} ${opts.list ? `list="${opts.list}"` : ''} value="${esc(val ?? '')}" placeholder="${esc(opts.ph || '')}"></div>`;
+}
+
+function stationView(s) {
+  const l = s.lith, mi = s.min;
+  return `
+  <div class="spread">
+    <div class="row"><button class="btn ghost small" data-act="back">← Stations</button></div>
+    <div class="row">${s.example ? '<span class="chip exm">example</span>' : ''}<span class="muted mono" style="font-size:12px">${fmtDate(s.createdAt)}</span></div>
+  </div>
+  <div class="spread"><h2 class="mono" style="font-family:var(--mono);color:var(--accent)">${esc(s.code)}</h2>
+    <div class="row">${pendingDelete === s.id ? `<span class="confirm">Delete this station and its photos? <button class="btn small danger" data-act="del-yes">Delete</button><button class="btn small" data-act="cancel">Keep</button></span>` : `<button class="btn small danger" data-act="del">Delete</button>`}</div></div>
+
+  <section class="sec" aria-labelledby="h-loc"><div class="spread"><h3 id="h-loc">Location</h3><button class="btn small primary" data-act="gps">Get GPS fix</button></div>
+    <p class="gpsmsg" id="gpsMsg">${s.gpsSource === 'gps' ? `GPS fix · ±${Math.round(s.acc)} m` : s.gpsSource === 'manual' ? 'Entered by hand' : 'No position yet. Tap Get GPS fix, or type coordinates (WGS84 decimal degrees).'}</p>
+    <div class="gps">
+      ${field('Latitude', 'lat', s.lat, { type: 'number', ph: '50.31420' })}
+      ${field('Longitude', 'lon', s.lon, { type: 'number', ph: '-5.22010' })}
+      ${field('Elevation (m)', 'elev', s.elev, { type: 'number' })}
+      ${field('Accuracy (m)', 'acc', s.acc, { type: 'number' })}
+    </div>
+    <div class="grid">
+      ${field('Locality', 'locality', s.locality, { wide: true, ph: 'e.g. cliff path below engine house' })}
+      ${field('Exposure', 'exposure', s.exposure, { select: EXPOSURE })}
+      ${field('Station code', 'code', s.code)}
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-lith"><h3 id="h-lith">Lithology</h3>
+    <div class="grid">
+      ${field('Rock type', 'lith.rockType', l.rockType, { list: 'rocks', ph: 'e.g. biotite granite' })}
+      ${field('Class', 'lith.rockClass', l.rockClass, { select: ROCK_CLASS })}
+      ${field('Colour', 'lith.colour', l.colour, { ph: 'fresh / weathered' })}
+      ${field('Grain size', 'lith.grainSize', l.grainSize, { select: GRAIN })}
+      ${field('Texture / fabric', 'lith.texture', l.texture, { wide: true, ph: 'e.g. porphyritic, K-feldspar megacrysts to 3 cm' })}
+      ${field('Description', 'lith.description', l.description, { area: true, ph: 'Mineralogy, sedimentary structures, contacts, weathering…' })}
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-str"><div class="spread"><h3 id="h-str">Structures</h3><span class="muted" style="font-size:12px">${settings.notation === 'dipdir' ? 'dip / dip direction' : 'strike / dip (right-hand rule)'}</span></div>
+    <div class="meas">${s.structures.map((m, i) => measRow(m, i)).join('') || '<p class="muted" style="font-size:14px">No measurements yet.</p>'}</div>
+    <div class="row"><button class="btn small" data-act="add-str" data-kind="planar">+ Planar (bedding, joint, fault…)</button><button class="btn small" data-act="add-str" data-kind="linear">+ Linear (lineation, fold axis)</button></div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-min"><h3 id="h-min">Mineralisation &amp; alteration</h3>
+    <div class="grid">
+      ${field('Minerals', 'min.minerals', mi.minerals, { wide: true, ph: 'e.g. cassiterite, chalcopyrite, tourmaline' })}
+      ${field('Style', 'min.style', mi.style, { select: MIN_STYLE })}
+      ${field('Abundance', 'min.abundance', mi.abundance, { ph: 'e.g. 2 % or trace' })}
+      ${field('Alteration', 'min.alteration', mi.alteration, { wide: true, ph: 'e.g. greisen, sericite, chlorite' })}
+      ${field('Notes', 'min.notes', mi.notes, { area: true })}
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-smp"><h3 id="h-smp">Samples</h3>
+    <div class="meas">${s.samples.map((x, i) => `
+      <div class="m"><div class="grid">
+        <div class="f"><label for="smp-id-${i}">Sample ID</label><input id="smp-id-${i}" class="num" data-list="samples" data-i="${i}" data-k="sampleId" value="${esc(x.sampleId)}"></div>
+        <div class="f"><label for="smp-ty-${i}">Type</label><select id="smp-ty-${i}" data-list="samples" data-i="${i}" data-k="type">${opt(SAMPLE_TYPE, x.type)}</select></div>
+        <div class="f"><label for="smp-pu-${i}">Purpose</label><input id="smp-pu-${i}" data-list="samples" data-i="${i}" data-k="purpose" value="${esc(x.purpose)}" placeholder="geochem, thin section…"></div>
+      </div><div class="m-foot"><span></span><button class="btn small ghost danger" data-act="rm" data-list="samples" data-i="${i}">Remove</button></div></div>`).join('') || '<p class="muted" style="font-size:14px">No samples yet.</p>'}</div>
+    <div class="row"><button class="btn small" data-act="add-smp">+ Sample</button></div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-ph"><div class="spread"><h3 id="h-ph">Photos</h3>
+    <label class="btn small primary filebtn">Take or add photo<input type="file" accept="image/*" capture="environment" multiple id="photoIn"></label></div>
+    <div class="photos" id="photoGrid">${s.photos.length ? '' : '<p class="muted" style="font-size:14px">No photos yet. Photos are shrunk to 1600 px and stored on this device.</p>'}</div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-notes"><h3 id="h-notes">Notes</h3>
+    ${field('Field notes', 'notes', s.notes, { area: true, ph: 'Anything else: sketches to make, follow-up, hazards…' })}
+  </section>
+
+  <section class="sec" aria-labelledby="h-log"><div class="spread"><h3 id="h-log">Station log</h3><div class="row"><button class="btn small" data-act="copy-log">Copy</button><button class="btn small" data-act="save-log">Save .txt</button></div></div>
+    <pre class="log" id="stLog">${esc(stationLog(s))}</pre>
+  </section>
+  <datalist id="rocks">${['Granite', 'Biotite granite', 'Tourmaline granite', 'Granodiorite', 'Diorite', 'Gabbro', 'Basalt', 'Andesite', 'Rhyolite', 'Dolerite', 'Elvan (quartz porphyry)', 'Sandstone', 'Siltstone', 'Mudstone', 'Shale', 'Slate (killas)', 'Limestone', 'Conglomerate', 'Greywacke', 'Phyllite', 'Schist', 'Gneiss', 'Quartzite', 'Marble', 'Hornfels', 'Skarn', 'Greisen', 'Quartz vein'].map(r => `<option value="${r}">`).join('')}</datalist>`;
+}
+function measRow(m, i) {
+  const lin = isLinear(m.type);
+  const f = (k, label, ph) => `<div class="f"><label for="ms-${k}-${i}">${label}</label><input id="ms-${k}-${i}" type="number" inputmode="decimal" step="any" data-list="structures" data-i="${i}" data-k="${k}" value="${m[k] ?? ''}" placeholder="${ph}"></div>`;
+  return `<div class="m"><div class="m-grid">
+    <div class="f type"><label for="ms-type-${i}">Type</label><select id="ms-type-${i}" data-list="structures" data-i="${i}" data-k="type">${opt(lin ? LINEAR : PLANAR, m.type)}</select></div>
+    ${lin ? f('trend', 'Trend °', '000–360') + f('plunge', 'Plunge °', '0–90') + '<div></div>'
+          : f('strike', 'Strike °', '000–360') + f('dip', 'Dip °', '0–90') + f('dipDir', 'Dip dir °', 'auto')}
+    </div>
+    <div class="grid"><div class="f"><label for="ms-sense-${i}">${lin ? 'Sense / notes' : 'Sense of movement / notes'}</label><input id="ms-sense-${i}" data-list="structures" data-i="${i}" data-k="notes" value="${esc(m.notes)}"></div></div>
+    <div class="m-foot"><span class="m-read" id="mr-${i}">${esc(structText(m))}</span><button class="btn small ghost danger" data-act="rm" data-list="structures" data-i="${i}">Remove</button></div>
+  </div>`;
+}
+
+async function renderPhotos(s) {
+  const grid = $('#photoGrid'); if (!grid || !s.photos.length) return;
+  const recs = await Promise.all(s.photos.map(p => db.get('photos', p.id)));
+  grid.innerHTML = s.photos.map((p, i) => `<div class="ph">${recs[i] ? `<img src="${recs[i].data}" alt="${esc(p.caption || s.code + ' photo ' + (i + 1))}">` : '<div class="muted">missing</div>'}
+    <input id="ph-cap-${i}" aria-label="Caption for photo ${i + 1}" data-list="photos" data-i="${i}" data-k="caption" value="${esc(p.caption)}" placeholder="Caption, facing direction">
+    <div class="row"><span class="mono muted" style="font-size:11px;flex:1">${esc(s.code)}_P${i + 1}</span><button class="btn small ghost danger" data-act="rm-photo" data-i="${i}">Remove</button></div></div>`).join('');
+}
+
+function bindStation(s) {
+  renderPhotos(s);
+  const refreshLog = () => { const el = $('#stLog'); if (el) el.textContent = stationLog(s); };
+  $('#main').oninput = (e) => {
+    const t = e.target;
+    if (t.dataset.path) {
+      const path = t.dataset.path.split('.');
+      let v = t.value;
+      if (['lat', 'lon', 'elev', 'acc'].includes(path[0])) { v = num(v); if (path[0] === 'lat' || path[0] === 'lon') s.gpsSource = 'manual'; }
+      if (path.length === 2) s[path[0]][path[1]] = v; else s[path[0]] = v;
+    } else if (t.dataset.list) {
+      const item = s[t.dataset.list][+t.dataset.i]; const k = t.dataset.k;
+      if (t.dataset.list === 'structures' && k !== 'type' && k !== 'notes') {
+        let v = num(t.value);
+        if (v != null && (k === 'dip' || k === 'plunge')) v = Math.max(0, Math.min(90, v));
+        if (v != null && (k === 'strike' || k === 'dipDir' || k === 'trend')) v = v === 360 ? 360 : norm360(v);
+        item[k] = v;
+        if (k === 'strike') { item.dipDir = v == null ? null : norm360(v + 90); const dd = $(`#ms-dipDir-${t.dataset.i}`); if (dd) dd.value = item.dipDir ?? ''; }
+        if (k === 'dipDir') { item.strike = v == null ? null : norm360(v - 90); const st = $(`#ms-strike-${t.dataset.i}`); if (st) st.value = item.strike ?? ''; }
+        const r = $(`#mr-${t.dataset.i}`); if (r) r.textContent = structText(item);
+      } else item[k] = t.value;
+    } else return;
+    saveStation(s); refreshLog();
+  };
+  $('#main').onchange = (e) => { if (e.target.dataset.list === 'structures' && e.target.dataset.k === 'type') { saveStation(s); render(); } };
+  $('#photoIn').onchange = async (e) => {
+    const files = [...e.target.files]; if (!files.length) return;
+    toast(`Adding ${files.length} photo${files.length > 1 ? 's' : ''}…`);
+    for (const f of files) {
+      try { const data = await compressImage(f); const id = uid(); await db.put('photos', { id, stationId: s.id, data }); s.photos.push({ id, caption: '', takenAt: new Date().toISOString() }); }
+      catch (err) { toast(`Couldn't read ${f.name}.`); }
+    }
+    await saveStation(s, true); render();
+  };
+}
+
+function gpsFix(s) {
+  const msg = $('#gpsMsg');
+  if (!('geolocation' in navigator)) { msg.className = 'gpsmsg err'; msg.textContent = 'This browser has no location access. Type the coordinates in.'; return; }
+  msg.className = 'gpsmsg'; msg.textContent = 'Getting a fix…';
+  navigator.geolocation.getCurrentPosition((p) => {
+    const c = p.coords;
+    s.lat = +c.latitude.toFixed(6); s.lon = +c.longitude.toFixed(6); s.acc = Math.round(c.accuracy);
+    s.elev = c.altitude != null ? Math.round(c.altitude) : s.elev; s.gpsSource = 'gps';
+    saveStation(s, true); render(); toast(`Fix ±${s.acc} m`);
+  }, (err) => {
+    msg.className = 'gpsmsg err';
+    msg.textContent = err.code === 1 ? 'Location permission was refused. Allow it in browser settings, or type the coordinates in.' : 'No fix yet. Try again in the open, or type the coordinates in.';
+  }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+}
+
+/* ---------- map (offline: no tiles, just your points and symbols) ---------- */
+function mapView() {
+  const pts = located();
+  return `<div class="spread"><h2>Station map</h2><span class="muted" style="font-size:13px">${pts.length} of ${stations.length} stations have a position</span></div>
+  ${pts.length ? `<div class="mapbox" id="mapbox"></div>
+  <div class="legend"><span>● station</span><span>⊥ strike &amp; dip (tick points down-dip)</span><span>→ lineation (trend)</span></div>
+  <p class="muted" style="font-size:13px">This sketch map works offline. For a basemap, export GeoJSON and open it in QGIS.</p>`
+  : `<div class="empty"><p>No stations with a position yet. Add a GPS fix to a station and it appears here.</p></div>`}`;
+}
+function drawMap() {
+  const box = $('#mapbox'); if (!box) return;
+  const pts = located();
+  const W = 720, H = 480, P = 56;
+  const lat0 = pts.reduce((a, s) => a + s.lat, 0) / pts.length, k = Math.cos(lat0 * Math.PI / 180);
+  const xs = pts.map(s => s.lon * k), ys = pts.map(s => s.lat);
+  let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const span = Math.max(maxX - minX, maxY - minY, 0.002);
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  const sc = Math.min((W - 2 * P) / span, (H - 2 * P) / span) * 0.95;
+  const X = (s) => W / 2 + (s.lon * k - cx) * sc, Y = (s) => H / 2 - (s.lat - cy) * sc;
+  const mPerUnit = 111320; const metresPerPx = mPerUnit / sc;
+  const nice = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+  const sbm = nice.find(n => n / metresPerPx > 70) || 20000; const sbpx = sbm / metresPerPx;
+  const css = getComputedStyle(document.documentElement);
+  const halo = `paint-order="stroke" stroke="${css.getPropertyValue('--map-bg').trim()}" stroke-width="3.5" stroke-linejoin="round"`;
+  const ink = css.getPropertyValue('--ink').trim(), acc = css.getPropertyValue('--accent').trim(), mut = css.getPropertyValue('--muted').trim(), line = css.getPropertyValue('--line').trim();
+  let g = '';
+  for (let i = 1; i < 6; i++) g += `<line x1="${i * W / 6}" y1="0" x2="${i * W / 6}" y2="${H}" stroke="${line}" stroke-width="1"/><line x1="0" y1="${i * H / 6}" x2="${W}" y2="${i * H / 6}" stroke="${line}" stroke-width="1"/>`;
+  pts.forEach(s => {
+    const x = X(s), y = Y(s);
+    s.structures.forEach((m, j) => {
+      if (isLinear(m.type) && m.trend != null) {
+        const a = (m.trend) * Math.PI / 180, L = 24;
+        const x2 = x + Math.sin(a) * L, y2 = y - Math.cos(a) * L;
+        g += `<line x1="${x}" y1="${y}" x2="${x2}" y2="${y2}" stroke="${mut}" stroke-width="2"/><circle cx="${x2}" cy="${y2}" r="2.5" fill="${mut}"/>`;
+        if (m.plunge != null) g += `<text ${halo} x="${x2 + 4}" y="${y2 + 4}" font-size="11" font-family="IBM Plex Mono, monospace" fill="${mut}">${pad2(m.plunge)}</text>`;
+      } else if (!isLinear(m.type) && (m.strike != null || m.dipDir != null)) {
+        const st = strikeOf(m), dd = dipDirOf(m), a = st * Math.PI / 180, b = dd * Math.PI / 180, L = 16, T = 7;
+        const col = j === 0 ? ink : mut;
+        g += `<line x1="${x - Math.sin(a) * L}" y1="${y + Math.cos(a) * L}" x2="${x + Math.sin(a) * L}" y2="${y - Math.cos(a) * L}" stroke="${col}" stroke-width="2.4"/>`;
+        g += `<line x1="${x}" y1="${y}" x2="${x + Math.sin(b) * T}" y2="${y - Math.cos(b) * T}" stroke="${col}" stroke-width="2.4"/>`;
+        if (m.dip != null && j === s.structures.findIndex(q => !isLinear(q.type))) g += `<text ${halo} x="${x + Math.sin(b) * (T + 9) - 6}" y="${y - Math.cos(b) * (T + 9) + 4}" font-size="11" font-family="IBM Plex Mono, monospace" fill="${col}">${m.dip}</text>`;
+      }
+    });
+    g += `<circle cx="${x}" cy="${y}" r="5" fill="${acc}" stroke="${css.getPropertyValue('--surface').trim()}" stroke-width="2"/>`;
+    g += `<text ${halo} x="${x + 8}" y="${y + 22}" font-size="12.5" font-weight="600" font-family="IBM Plex Mono, monospace" fill="${ink}">${esc(s.code)}</text>`;
+  });
+  // north arrow + scale bar
+  g += `<g transform="translate(${W - 34},34)"><path d="M0,-16 L7,8 L0,3 L-7,8 Z" fill="${ink}"/><text x="0" y="22" text-anchor="middle" font-size="12" font-weight="600" font-family="Barlow Condensed, sans-serif" fill="${ink}">N</text></g>`;
+  g += `<g transform="translate(20,${H - 24})"><rect x="0" y="0" width="${sbpx / 2}" height="6" fill="${ink}"/><rect x="${sbpx / 2}" y="0" width="${sbpx / 2}" height="6" fill="none" stroke="${ink}"/><text x="0" y="-5" font-size="11" font-family="IBM Plex Mono, monospace" fill="${ink}">0</text><text x="${sbpx}" y="-5" text-anchor="end" font-size="11" font-family="IBM Plex Mono, monospace" fill="${ink}">${sbm >= 1000 ? sbm / 1000 + ' km' : sbm + ' m'}</text></g>`;
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Sketch map of ${pts.length} stations with structural symbols">${g}</svg>`;
+  box.onclick = null;
+}
+
+function logView() {
+  const t = fieldLog();
+  return `<div class="spread"><h2>Field log</h2><div class="row"><button class="btn small" data-act="copy-field">Copy</button><button class="btn small" data-act="save-field">Save .txt</button></div></div>
+  <p class="muted" style="font-size:14px">Written automatically from your stations, oldest first. It updates as you record.</p>
+  <pre class="log">${esc(t)}</pre>`;
+}
+
+function exportView() {
+  const nl = located().length;
+  const card = (file, desc, act) => `<div class="ex"><b>${file}</b><p>${desc}</p><button class="btn small" data-act="${act}">Save</button></div>`;
+  return `<h2>Export for GIS</h2>
+  <p class="muted" style="font-size:14px">${nl} of ${stations.length} stations have a position. GeoJSON is WGS84 (EPSG:4326): drag it straight into QGIS. Strike and dip columns let you rotate a symbol by <span class="mono">"strike"</span>.${inArtifact() ? ' In this preview, GeoJSON files save with a .json extension; QGIS opens them the same way.' : ''}</p>
+  <div class="exp">
+    ${card('stations.geojson', 'One point per station with lithology, first planar structure, mineralisation and sample IDs.', 'x-gj')}
+    ${card('structures.geojson', 'One point per measurement: strike, dip, dip direction, trend, plunge.', 'x-gjs')}
+    ${card('stations.csv', 'Same fields as stations.geojson, for spreadsheets or a delimited-text layer.', 'x-csv')}
+    ${card('structures.csv', 'Every measurement with station coordinates, ready for stereonet software.', 'x-csvs')}
+    ${card('samples.csv', 'Sample register: ID, station, position, type, purpose.', 'x-smp')}
+    ${card('field_log.txt', 'The full written field log.', 'save-field')}
+  </div>
+  <h3>Backup</h3>
+  <div class="exp">
+    ${card('geolog_backup.json', 'Everything, photos included. Restore it on another phone or after clearing the browser.', 'x-bak')}
+    <div class="ex"><b>Restore a backup</b><p>Adds stations from a GeoLog backup file. Stations with the same ID are replaced.</p><label class="btn small filebtn">Choose file<input type="file" accept=".json,application/json" id="restoreIn"></label></div>
+  </div>`;
+}
+
+function settingsView() {
+  return `<h2>Project</h2>
+  <section class="sec"><div class="grid">
+    <div class="f wide"><label for="set-project">Project / mapping area</label><input id="set-project" data-set="project" value="${esc(settings.project)}"></div>
+    <div class="f"><label for="set-geologist">Geologist</label><input id="set-geologist" data-set="geologist" value="${esc(settings.geologist)}"></div>
+    <div class="f"><label for="set-prefix">Station prefix</label><input id="set-prefix" data-set="prefix" value="${esc(settings.prefix)}"></div>
+    <div class="f wide"><label for="set-notation">Planar notation in logs</label><select id="set-notation" data-set="notation">
+      <option value="strike"${settings.notation === 'strike' ? ' selected' : ''}>Strike / dip, right-hand rule (045/78 SE)</option>
+      <option value="dipdir"${settings.notation === 'dipdir' ? ' selected' : ''}>Dip / dip direction (78/135)</option></select></div>
+  </div></section>
+  <section class="sec"><h3>About this device</h3>
+    <p style="font-size:14px">All data stays in this browser on this device. Nothing is uploaded. Save a backup from Export before clearing browser data or changing phone.</p>
+    <p style="font-size:14px" class="muted">To install: open GeoLog in your phone's browser, then Share → Add to Home Screen (iPhone) or menu → Install app (Android). It then opens full-screen and works without signal.</p>
+    <div class="row">${pendingDelete === 'all' ? `<span class="confirm">Delete every station and photo on this device? <button class="btn small danger" data-act="wipe-yes">Delete everything</button><button class="btn small" data-act="cancel">Keep</button></span>` : `<button class="btn small" data-act="load-ex">Load example stations</button><button class="btn small danger" data-act="wipe">Delete all data</button>`}</div>
+  </section>`;
+}
+
+/* ---------- example data (St Agnes, Cornwall) ---------- */
+function exampleStations() {
+  const base = Date.parse('2026-10-14T09:10:00Z');
+  const mk = (i, o) => Object.assign(newStation(), { id: 'ex' + i, code: `EX-${pad3(i)}`, example: true, createdAt: new Date(base + i * 47 * 60000).toISOString(), updatedAt: new Date().toISOString(), gpsSource: 'gps' }, o);
+  return [
+    mk(1, { lat: 50.31845, lon: -5.22610, elev: 72, acc: 5, locality: 'Trevaunance Cove, east side of slipway', exposure: 'In situ outcrop',
+      lith: { rockType: 'Slate (killas)', rockClass: 'Metamorphic', colour: 'Grey-green, rusty weathering', grainSize: 'Very fine (<0.06 mm)', texture: 'Strong slaty cleavage, faint bedding laminae', description: 'Mylor Slate Fm. Thin silty laminae define bedding at a low angle to cleavage. Quartz veinlets parallel to cleavage.' },
+      structures: [{ id: uid(), type: 'Cleavage', strike: 250, dip: 42, dipDir: 340, notes: '' }, { id: uid(), type: 'Bedding (S0)', strike: 262, dip: 30, dipDir: 352, notes: 'from silty laminae' }],
+      min: { minerals: 'Quartz', style: 'Vein / veinlet', abundance: '<1 %', alteration: 'Weak chlorite', notes: '' },
+      samples: [{ id: uid(), sampleId: 'SA26-001', type: 'Oriented', purpose: 'Thin section, fabric', notes: '' }] }),
+    mk(2, { lat: 50.31390, lon: -5.23370, elev: 88, acc: 4, locality: 'Wheal Coates, cliff path below engine house', exposure: 'In situ outcrop',
+      lith: { rockType: 'Hornfels', rockClass: 'Metamorphic', colour: 'Dark grey, spotted', grainSize: 'Fine (0.06–1 mm)', texture: 'Spotted, cordierite? porphyroblasts 1–2 mm', description: 'Thermally metamorphosed killas in the aureole of the St Agnes granite. Cut by tourmaline veins.' },
+      structures: [{ id: uid(), type: 'Vein', strike: 70, dip: 82, dipDir: 160, notes: 'tourmaline-quartz, 2–6 cm' }, { id: uid(), type: 'Joint', strike: 345, dip: 75, dipDir: 75, notes: '' }],
+      min: { minerals: 'Tourmaline, quartz, cassiterite (trace), chalcopyrite', style: 'Vein / veinlet', abundance: 'Trace', alteration: 'Tourmalinisation of wall rock, 5 cm halo', notes: 'Main lode trend is ENE, parallel to the vein measured here.' },
+      samples: [{ id: uid(), sampleId: 'SA26-002', type: 'Rock chip', purpose: 'Geochem (Sn, Cu, W)', notes: '' }, { id: uid(), sampleId: 'SA26-003', type: 'Hand specimen', purpose: 'Reference', notes: '' }] }),
+    mk(3, { lat: 50.30700, lon: -5.21180, elev: 182, acc: 7, locality: 'St Agnes Beacon, NE flank', exposure: 'Subcrop',
+      lith: { rockType: 'Biotite granite', rockClass: 'Igneous', colour: 'Pale grey, buff where weathered', grainSize: 'Coarse (5–30 mm)', texture: 'Porphyritic, K-feldspar megacrysts to 3 cm', description: 'Weathered granite in track cutting. Megacrysts weakly aligned.' },
+      structures: [{ id: uid(), type: 'Joint', strike: 160, dip: 88, dipDir: 250, notes: '' }, { id: uid(), type: 'Lineation', trend: 65, plunge: 12, notes: 'megacryst alignment' }],
+      min: { minerals: 'Tourmaline', style: 'Disseminated', abundance: '1 %', alteration: 'Kaolinisation of feldspar', notes: '' },
+      samples: [] }),
+    mk(4, { lat: 50.31990, lon: -5.20540, elev: 64, acc: 6, locality: 'Polberro, old dump south of road', exposure: 'Spoil / dump',
+      lith: { rockType: 'Greisen', rockClass: 'Vein / hydrothermal', colour: 'Grey-green', grainSize: 'Medium (1–5 mm)', texture: 'Quartz-muscovite, vuggy', description: 'Float on mine dump. Not in situ.' },
+      structures: [],
+      min: { minerals: 'Cassiterite, wolframite?, arsenopyrite', style: 'Massive', abundance: '3–5 %', alteration: 'Greisen', notes: 'Black cassiterite in quartz. Check wolframite under UV.' },
+      samples: [{ id: uid(), sampleId: 'SA26-004', type: 'Grab', purpose: 'Assay', notes: '' }] }),
+  ];
+}
+async function loadExamples() { for (const s of exampleStations()) { await db.put('stations', s); } stations = await db.all('stations'); }
+
+/* ---------- global events ---------- */
+document.addEventListener('click', async (e) => {
+  const tab = e.target.closest('.tab'); if (tab) return setView(tab.dataset.view);
+  const open = e.target.closest('[data-open]'); if (open) return setView('station', open.dataset.open);
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act; const s = stations.find(x => x.id === currentId);
+  switch (act) {
+    case 'new': { const n = newStation(); stations.push(n); await saveStation(n, true); setView('station', n.id); gpsFix(n); break; }
+    case 'back': setView('stations'); break;
+    case 'gps': gpsFix(s); break;
+    case 'del': pendingDelete = s.id; render(); break;
+    case 'del-yes': for (const p of s.photos) await db.del('photos', p.id); await db.del('stations', s.id); stations = stations.filter(x => x.id !== s.id); toast(`Deleted ${s.code}`); setView('stations'); break;
+    case 'cancel': pendingDelete = null; render(); break;
+    case 'add-str': s.structures.push(b.dataset.kind === 'linear' ? { id: uid(), type: 'Lineation', trend: null, plunge: null, notes: '' } : { id: uid(), type: 'Bedding (S0)', strike: null, dip: null, dipDir: null, notes: '' }); await saveStation(s, true); render(); { const i = s.structures.length - 1; const el = $(`#ms-type-${i}`); el && el.scrollIntoView({ block: 'center' }); } break;
+    case 'add-smp': { const n = s.samples.length + 1; s.samples.push({ id: uid(), sampleId: `${settings.samplePrefix || s.code}-${String.fromCharCode(64 + n)}`, type: SAMPLE_TYPE[0], purpose: '', notes: '' }); await saveStation(s, true); render(); break; }
+    case 'rm': s[b.dataset.list].splice(+b.dataset.i, 1); await saveStation(s, true); render(); break;
+    case 'rm-photo': { const [p] = s.photos.splice(+b.dataset.i, 1); await db.del('photos', p.id); await saveStation(s, true); render(); break; }
+    case 'copy-log': copyText(stationLog(s)); break;
+    case 'save-log': saveFile(`${s.code}_log.txt`, stationLog(s), 'text/plain'); break;
+    case 'copy-field': copyText(fieldLog()); break;
+    case 'save-field': saveFile('field_log.txt', fieldLog(), 'text/plain'); break;
+    case 'x-gj': saveFile('stations.geojson', geojsonStations(), 'application/geo+json'); break;
+    case 'x-gjs': saveFile('structures.geojson', geojsonStructures(), 'application/geo+json'); break;
+    case 'x-csv': saveFile('stations.csv', csvStations(), 'text/csv'); break;
+    case 'x-csvs': saveFile('structures.csv', csvStructures(), 'text/csv'); break;
+    case 'x-smp': saveFile('samples.csv', csvSamples(), 'text/csv'); break;
+    case 'x-bak': saveFile(`geolog_backup_${new Date().toISOString().slice(0, 10)}.json`, await backupJSON(), 'application/json'); break;
+    case 'load-ex': await loadExamples(); toast('Loaded 4 example stations'); setView('stations'); break;
+    case 'clear-ex': pendingDelete = 'examples'; render(); break;
+    case 'clear-ex-yes': for (const x of stations.filter(x => x.example)) await db.del('stations', x.id); stations = stations.filter(x => !x.example); await db.put('meta', { key: 'examplesCleared', v: true }); pendingDelete = null; render(); break;
+    case 'wipe': pendingDelete = 'all'; render(); break;
+    case 'wipe-yes': await db.clear('stations'); await db.clear('photos'); await db.put('meta', { key: 'examplesCleared', v: true }); stations = []; toast('All data deleted'); setView('stations'); break;
+  }
+});
+document.addEventListener('input', (e) => {
+  const k = e.target.dataset.set; if (!k) return;
+  settings[k] = e.target.value; db.put('meta', settings); $('#projLabel').textContent = settings.project + (settings.geologist ? ' · ' + settings.geologist : '');
+});
+document.addEventListener('change', async (e) => {
+  if (e.target.id !== 'restoreIn' || !e.target.files[0]) return;
+  try {
+    const data = JSON.parse(await e.target.files[0].text());
+    if (data.app !== 'GeoLog' || !Array.isArray(data.stations)) throw new Error('not a GeoLog backup');
+    for (const p of data.photos || []) await db.put('photos', p);
+    for (const s of data.stations) await db.put('stations', s);
+    stations = await db.all('stations'); toast(`Restored ${data.stations.length} stations`); setView('stations');
+  } catch (err) { toast("That file isn't a GeoLog backup."); }
+});
+function net() { const el = $('#netStatus'); el.className = 'status ' + (navigator.onLine ? 'on' : 'off'); el.textContent = navigator.onLine ? 'online' : 'offline · saving locally'; }
+addEventListener('online', net); addEventListener('offline', net);
+
+/* ---------- boot ---------- */
+(async () => {
+  await openDB();
+  try { const s = await db.get('meta', 'settings'); if (s) settings = Object.assign(settings, s); } catch (e) {}
+  try { stations = await db.all('stations'); } catch (e) { stations = []; }
+  let cleared = null; try { cleared = await db.get('meta', 'examplesCleared'); } catch (e) {}
+  if (!stations.length && !cleared) { await loadExamples(); settings.project = 'St Agnes mapping (example)'; }
+  net(); setView('stations');
+})();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+</script>
+</body>
+</html>
